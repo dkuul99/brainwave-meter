@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 project(BrainwaveMeter VERSION 1.0.0)
 
-set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JUCE" CACHE PATH "Path to JUCE")
+# JUCE path: check local (sibling dir) first, then in-repo
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../JUCE/CMakeLists.txt")
+    set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../JUCE" CACHE PATH "Path to JUCE")
+else()
+    set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JUCE" CACHE PATH "Path to JUCE")
+endif()
 
 add_subdirectory(${JUCE_PATH} JUCE)
 

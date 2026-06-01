@@ -4,208 +4,135 @@ namespace BwmColours
 {
     static const juce::Colour bg           { 0xFF0A0A14 };
     static const juce::Colour panelBg      { 0xFF12121E };
-    static const juce::Colour gridLine     { 0xFF1E1E30 };
-    static const juce::Colour textDim      { 0xFF6B6B80 };
-    static const juce::Colour textBright   { 0xFFE0E0F0 };
+    static const juce::Colour gridLine     { 0xFF1A1A2E };
+    static const juce::Colour text         { 0xFFB8B8D0 };
+    static const juce::Colour textDim      { 0xFF606080 };
+    static const juce::Colour accent       { 0xFF4FC3F7 };
 }
-
-static juce::Font boldFont (float size)   { return juce::Font (juce::FontOptions (size, juce::Font::bold)); }
-static juce::Font normalFont (float size) { return juce::Font (juce::FontOptions (size)); }
 
 //==============================================================================
 BrainwaveMeterEditor::BrainwaveMeterEditor (BrainwaveMeterProcessor& p)
-    : AudioProcessorEditor (p),
-      processor (p),
-      sensitivityAttach (p.getAPVTS(), "SENSITIVITY", sensitivitySlider),
-      smoothingAttach   (p.getAPVTS(), "SMOOTHING",   smoothingSlider)
+    : AudioProcessorEditor (p), processor (p)
 {
     setOpaque (true);
-    
-    for (auto* slider : { &sensitivitySlider, &smoothingSlider })
-    {
-        slider->setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-        slider->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 60, 16);
-        slider->setColour (juce::Slider::rotarySliderFillColourId,    juce::Colour (0xFF4040FF));
-        slider->setColour (juce::Slider::rotarySliderOutlineColourId, juce::Colour (0xFF202030));
-        slider->setColour (juce::Slider::textBoxTextColourId,         BwmColours::textDim);
-        slider->setColour (juce::Slider::textBoxBackgroundColourId,   BwmColours::panelBg);
-        slider->setColour (juce::Slider::textBoxOutlineColourId,      juce::Colour (0xFF1E1E30));
-        addAndMakeVisible (slider);
-    }
-    
-    sensitivityLabel.setText ("SENSITIVITY", juce::dontSendNotification);
-    smoothingLabel.setText   ("SMOOTHING",   juce::dontSendNotification);
-    for (auto* label : { &sensitivityLabel, &smoothingLabel })
-    {
-        label->setColour (juce::Label::textColourId, BwmColours::textDim);
-        label->setFont (boldFont (10.0f));
-        label->setJustificationType (juce::Justification::centred);
-        addAndMakeVisible (label);
-    }
-    
-    setSize (380, 480);
     startTimerHz (30);
+    setSize (460, 340);
+}
+
+BrainwaveMeterEditor::~BrainwaveMeterEditor()
+{
+    stopTimer();
 }
 
 //==============================================================================
 void BrainwaveMeterEditor::paint (juce::Graphics& g)
 {
-    using namespace juce;
+    using namespace BwmColours;
     
-    analysis = processor.getAnalysis();
+    g.fillAll (bg);
     
-    for (int b = 0; b < 5; ++b)
-        displayBands[b] += 0.18f * (analysis.bands[b] - displayBands[b]);
-    displayBPM      += 0.06f * (analysis.bpm          - displayBPM);
-    displayBinaural += 0.08f * (analysis.binauralHz   - displayBinaural);
-    displayDominant  = analysis.dominant;
+    const auto a = processor.getAnalysis();
     
-    g.fillAll (BwmColours::bg);
+    // ── Title ──
+    g.setColour (accent);
+    g.setFont (juce::Font (16.0f).withStyle (juce::Font::bold));
+    g.drawText ("BRAINWAVE METER", getLocalBounds().removeFromTop (24),
+                juce::Justification::centred, false);
     
-    auto bounds = getLocalBounds().reduced (16, 12);
-    
-    // Title
-    g.setColour (BwmColours::textBright);
-    g.setFont (boldFont (22.0f));
-    g.drawText ("BRAINWAVE METER", bounds.removeFromTop (30), Justification::centred);
-    
-    // Dominant state
-    g.setColour (brainwaveBands[(size_t) displayDominant].color.withAlpha (0.9f));
-    g.setFont (normalFont (13.0f));
-    g.drawText (brainwaveBands[(size_t) displayDominant].state,
-               bounds.removeFromTop (18), Justification::centred);
-    
-    bounds.removeFromTop (8);
-    
-    // ═══ METER BARS ═══
-    auto meterArea = bounds.removeFromTop (220);
-    
-    constexpr int barWidth   = 48;
-    constexpr int barGap     = 12;
-    constexpr int totalWidth = 5 * barWidth + 4 * barGap;
-    const int startX   = meterArea.getX() + (meterArea.getWidth() - totalWidth) / 2;
-    const int barBottom = meterArea.getBottom();
-    const int barTop    = meterArea.getY() + 20;
-    const int maxBarH   = barBottom - barTop;
+    // ── Band meters ──
+    auto meterArea = getLocalBounds().reduced (20, 36);
+    const int bandW = meterArea.getWidth() / 5;
     
     for (int b = 0; b < 5; ++b)
     {
-        const auto& band = brainwaveBands[(size_t) b];
-        const int x = startX + b * (barWidth + barGap);
+        const auto& band = brainwaveBands[b];
+        const float level = a.bands[b];
+        const int x = meterArea.getX() + b * bandW;
+        const int y = meterArea.getY();
+        const int w = bandW - 6;
+        const int h = meterArea.getHeight() - 40;
         
-        const float level = jlimit (0.0f, 1.0f, displayBands[(size_t) b]);
-        const int barH = static_cast<int> (level * maxBarH);
-        
-        // Background track
-        g.setColour (BwmColours::panelBg);
-        g.fillRoundedRectangle (Rectangle<int> (x, barTop, barWidth, maxBarH).toFloat(), 4.0f);
-        
-        // Filled bar
-        if (barH > 2)
-        {
-            auto fillRect = Rectangle<int> (x, barBottom - barH, barWidth, barH).toFloat();
-            
-            if (b == displayDominant)
-            {
-                g.setColour (band.color.withAlpha (0.15f));
-                g.fillRoundedRectangle (fillRect.expanded (6, 0), 6.0f);
-            }
-            
-            ColourGradient grad (band.color.withAlpha (0.5f),
-                                 fillRect.getX(), fillRect.getBottom(),
-                                 band.color,
-                                 fillRect.getX(), fillRect.getY(), false);
-            g.setGradientFill (grad);
-            g.fillRoundedRectangle (fillRect, 4.0f);
-        }
+        // Background
+        g.setColour (panelBg);
+        g.fillRoundedRectangle (x, y, w, h, 4.0f);
         
         // Grid lines
-        g.setColour (BwmColours::gridLine.withAlpha (0.4f));
-        for (int tick = 1; tick < 5; ++tick)
+        g.setColour (gridLine);
+        for (int i = 1; i < 10; ++i)
         {
-            float y = barTop + (maxBarH * tick / 5.0f);
-            g.drawHorizontalLine (static_cast<int> (y), x + 2, x + barWidth - 2);
+            float gy = y + h * i / 10.0f;
+            g.drawHorizontalLine (static_cast<int> (gy), x + 2.0f, x + w - 2.0f);
         }
         
-        // Percentage
-        g.setColour (BwmColours::textBright);
-        g.setFont (boldFont (12.0f));
-        g.drawText (String (static_cast<int> (level * 100)) + "%",
-                    Rectangle<int> (x, barBottom - barH - 18, barWidth, 16),
-                    Justification::centred);
+        // Filled meter (bottom-up, with gradient)
+        const int fillH = static_cast<int> (h * juce::jlimit (0.0f, 1.0f, level));
+        if (fillH > 0)
+        {
+            juce::ColourGradient grad (band.color.withAlpha (0.9f), 
+                                       static_cast<float> (x), static_cast<float> (y + h - fillH),
+                                       band.color.withAlpha (0.3f), 
+                                       static_cast<float> (x), static_cast<float> (y + h),
+                                       false);
+            g.setGradientFill (grad);
+            g.fillRoundedRectangle (x + 2, y + h - fillH, w - 4, fillH, 3.0f);
+        }
+        
+        // Dominant band highlight
+        if (b == a.dominant)
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.15f));
+            g.fillRoundedRectangle (x, y, w, h, 4.0f);
+        }
+        
+        // Level text
+        g.setColour (text);
+        g.setFont (9.0f);
+        g.drawText (juce::String (level * 100.0f, 0) + "%", 
+                    x, y + 2, w, 14, juce::Justification::centredRight, false);
         
         // Band name
-        g.setColour (band.color.withAlpha (b == displayDominant ? 1.0f : 0.6f));
-        g.setFont (boldFont (10.0f));
-        g.drawText (band.name,
-                    Rectangle<int> (x - 4, barBottom + 4, barWidth + 8, 14),
-                    Justification::centred);
+        g.setColour (band.color);
+        g.setFont (juce::Font (11.0f).withStyle (juce::Font::bold));
+        g.drawText (band.name, x, y + h + 3, w, 16, juce::Justification::centred, false);
         
-        // Frequency range
-        g.setColour (BwmColours::textDim);
-        g.setFont (normalFont (8.0f));
-        g.drawText (String (band.lowHz, 1) + "-" + String (band.highHz, 0) + "Hz",
-                    Rectangle<int> (x - 4, barBottom + 17, barWidth + 8, 12),
-                    Justification::centred);
+        // Hz range
+        g.setColour (textDim);
+        g.setFont (8.0f);
+        g.drawText (juce::String (band.lowHz, 1) + "-" + juce::String (band.highHz, 0) + "Hz",
+                    x, y + h + 17, w, 12, juce::Justification::centred, false);
+        
+        // State label
+        g.setColour (text);
+        g.setFont (8.0f);
+        g.drawText (band.state, x, y + h + 28, w, 12, juce::Justification::centred, false);
     }
     
-    bounds.removeFromTop (38);
-    
-    // ═══ BOTTOM INFO ═══
-    g.setColour (BwmColours::gridLine);
-    g.drawHorizontalLine (bounds.getY(), bounds.getX(), bounds.getRight());
-    bounds.removeFromTop (10);
+    // ── Bottom readout ──
+    auto bottom = getLocalBounds().removeFromBottom (32).reduced (20, 0);
     
     // BPM
-    auto bpmArea = bounds.removeFromTop (40);
-    g.setColour (BwmColours::textDim);
-    g.setFont (normalFont (10.0f));
-    g.drawText ("BPM", bpmArea.removeFromLeft (50), Justification::centredLeft);
-    
-    g.setColour (BwmColours::textBright);
-    g.setFont (boldFont (26.0f));
-    g.drawText (String (static_cast<int> (displayBPM + 0.5f)),
-                bpmArea, Justification::centredLeft);
+    g.setColour (accent);
+    g.setFont (juce::Font (13.0f).withStyle (juce::Font::bold));
+    g.drawText ("BPM: " + juce::String (a.bpm, 1), 
+                bottom.removeFromLeft (120), juce::Justification::left, false);
     
     // Binaural
-    auto binArea = bounds.removeFromTop (30);
-    g.setColour (BwmColours::textDim);
-    g.setFont (normalFont (10.0f));
-    g.drawText ("BINAURAL", binArea.removeFromLeft (70), Justification::centredLeft);
-    
-    if (displayBinaural > 0.5f)
+    if (a.binauralHz > 0.5f)
     {
-        const char* binauralState = "-";
-        for (int b = 0; b < 5; ++b)
-        {
-            if (displayBinaural >= brainwaveBands[(size_t) b].lowHz
-             && displayBinaural <  brainwaveBands[(size_t) b].highHz)
-            {
-                binauralState = brainwaveBands[(size_t) b].name;
-                g.setColour (brainwaveBands[(size_t) b].color);
-                break;
-            }
-        }
-        g.setFont (boldFont (16.0f));
-        g.drawText (String (displayBinaural, 1) + " Hz  " + String (binauralState),
-                    binArea, Justification::centredLeft);
-    }
-    else
-    {
-        g.setColour (BwmColours::textDim);
-        g.setFont (normalFont (13.0f));
-        g.drawText ("No binaural detected", binArea, Justification::centredLeft);
+        g.setColour (juce::Colours::yellowgreen);
+        g.setFont (11.0f);
+        g.drawText ("Binaural: " + juce::String (a.binauralHz, 1) + "Hz",
+                    bottom.removeFromLeft (140), juce::Justification::left, false);
     }
     
-    // Sliders
-    bounds.removeFromTop (10);
-    auto sliderRow = bounds.removeFromTop (80);
-    auto sliderHalf = sliderRow.getWidth() / 2;
-    
-    sensitivityLabel.setBounds (sliderRow.getX(), sliderRow.getY(), sliderHalf, 16);
-    smoothingLabel.setBounds   (sliderRow.getX() + sliderHalf, sliderRow.getY(), sliderHalf, 16);
-    sensitivitySlider.setBounds (sliderRow.getX() + 10, sliderRow.getY() + 18, sliderHalf - 20, 56);
-    smoothingSlider.setBounds   (sliderRow.getX() + sliderHalf + 10, sliderRow.getY() + 18, sliderHalf - 20, 56);
+    // Dominant band state
+    g.setColour (brainwaveBands[a.dominant].color);
+    g.setFont (11.0f);
+    g.drawText (brainwaveBands[a.dominant].state,
+                bottom, juce::Justification::centredRight, false);
 }
 
-void BrainwaveMeterEditor::resized() {}
+void BrainwaveMeterEditor::timerCallback()
+{
+    repaint();
+}
