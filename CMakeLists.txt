@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(BrainwaveMeter VERSION 1.0.0)
 
-set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../JUCE" CACHE PATH "Path to JUCE")
+set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JUCE" CACHE PATH "Path to JUCE")
 
 add_subdirectory(${JUCE_PATH} JUCE)
 

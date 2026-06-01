@@ -1,1 +1,0 @@
-/usr/bin/x86_64-w64-mingw32-g++ CMakeFiles/vst3_helper.dir/home/dkuul/workspace/JUCE/modules/juce_audio_plugin_client/VST3/juce_VST3ManifestHelper.cpp.o -o vst3_helper

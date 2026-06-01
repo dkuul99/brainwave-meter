@@ -1,3 +1,0 @@
-/home/dkuul/workspace/brainwave-meter/build-win/BrainwaveMeter_artefacts/JuceLibraryCode/vst3_helper/CMakeFiles/vst3_helper.dir
-/home/dkuul/workspace/brainwave-meter/build-win/BrainwaveMeter_artefacts/JuceLibraryCode/vst3_helper/CMakeFiles/edit_cache.dir
-/home/dkuul/workspace/brainwave-meter/build-win/BrainwaveMeter_artefacts/JuceLibraryCode/vst3_helper/CMakeFiles/rebuild_cache.dir

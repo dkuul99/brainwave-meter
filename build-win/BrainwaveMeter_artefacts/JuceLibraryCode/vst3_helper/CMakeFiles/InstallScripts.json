@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/dkuul/workspace/brainwave-meter/build-win/BrainwaveMeter_artefacts/JuceLibraryCode/vst3_helper/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

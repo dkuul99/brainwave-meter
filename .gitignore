@@ -1,0 +1,6 @@
+build/
+build-win/
+*.o
+*.so
+*.a
+.DS_Store

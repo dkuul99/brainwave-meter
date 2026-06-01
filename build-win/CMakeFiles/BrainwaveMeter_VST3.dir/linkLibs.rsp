@@ -1,1 +1,0 @@
- "BrainwaveMeter_artefacts/Release/libBrainwave Meter_SharedCode.a" -flto -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 
