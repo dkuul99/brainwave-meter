@@ -1,0 +1,3 @@
+# Hashes of file build rules.
+36793aa4c2fc96a85fdc115313bd34ba BrainwaveMeter_artefacts/JuceLibraryCode/BrainwaveMeter_resources.rc
+77320156f3aba05c9ed64c1090688b67 CMakeFiles/BrainwaveMeter_vst3_helper
